@@ -194,6 +194,8 @@ class ReaderTrainer(object):
             for q_predictions in all_results:
                 gold_answers = q_predictions.gold_answers
                 span_predictions = q_predictions.predictions  # {top docs threshold -> SpanPrediction()}
+                # Notice: bad for evaluation
+                if len(gold_answers) == 0: continue
                 for (n, span_prediction) in span_predictions.items():
                     em_hit = max([exact_match_score(span_prediction.prediction_text, ga) for ga in gold_answers])
                     ems[n].append(em_hit)
@@ -355,6 +357,11 @@ class ReaderTrainer(object):
                 if len(nbest) > 0 and not passage_thresholds:
                     break
 
+            if args.rank_method == 'span' :
+                nbest.sort(key=lambda x: x.span_score, reverse=True)
+            elif args.rank_method == 'rel+span' :
+                nbest.sort(key=lambda x: x.span_score+x.relevance_score, reverse=True)
+
             if passage_thresholds:
                 passage_rank_matches = {}
                 for n in passage_thresholds:
@@ -508,6 +515,8 @@ def main():
                         help="Enables resumable mode by specifying global step dependent random seed before shuffling "
                              "in-batch data")
     parser.add_argument('--test_only', action='store_true',
+                        help="do evaluation")
+    parser.add_argument('--rank_method', default="rel->span", type=str,
                         help="Calculate exact match")
 
     args = parser.parse_args()
